@@ -39,32 +39,45 @@ class _MyHomePageState extends State<MyHomePage> {
   File? filePath;
   String label = '';
   double confidence = 0.0;
+  //late Interpreter interpreter;
   late Interpreter interpreter;
   List<String> labels = [];
 
   late Tensor inputTensor;
   late Tensor outputTensor;
 
+  late int height_m;
+  late int width_m;
 
-  Future<void> _loadModel() async {
+
+  void _loadModel() async {
     //labels = await File("assets/labels.txt").readAsLines();
-    String label1 = await rootBundle.loadString("assets/labels.txt");
+    //String label1 = await rootBundle.loadString("assets/labels.txt");
     //String label1 = await rootBundle.loadString("assets/labels_m.txt");
+    String label1 = await rootBundle.loadString("assets/imagenet-labels.txt");
 
     print("Label File \n${label1}");
 
     labels = label1.split("\n");
     print("Labels: $labels");
 
-    interpreter = await Interpreter.fromAsset("assets/model_unquant.tflite");
+    // final options = InterpreterOptions();
+    //
+    // if (Platform.isAndroid) {
+    //   options.addDelegate(GpuDelegateV2());
+    // }
+
+    //interpreter = await Interpreter.fromAsset("assets/model_unquant.tflite");// options: options);
     //interpreter = await Interpreter.fromAsset("assets/mobilenet_v1_1.0_224.tflite");
-    //interpreter = await Interpreter.fromAsset("assets/efficientnet-tflite-lite4-fp32-v2/2.tflite");
+    interpreter = await Interpreter.fromAsset("assets/2.tflite");
 
 
     print("Model Loaded Successfully");
     print(interpreter.getInputTensors());
     inputTensor = interpreter.getInputTensors().first;
     print("Input Tensor : ${inputTensor}");
+    height_m = inputTensor.shape[1].toInt();
+    width_m = inputTensor.shape[2].toInt();
     print(interpreter.getOutputTensors());
     outputTensor = interpreter.getOutputTensors().first;
     print("Output Tensor : ${outputTensor}");
@@ -94,18 +107,23 @@ class _MyHomePageState extends State<MyHomePage> {
     //   throw Exception("Failed to decode image.");
     // }
 
-    img.Image resizedImage = img.copyResize(image!, width: 224, height: 224);
+    //img.Image resizedImage = img.copyResize(image!, width: 224, height: 224);
+    img.Image resizedImage = img.copyResize(image!, width : width_m, height: height_m);
     print("Resized Image Length --> ${resizedImage.getBytes().buffer.asFloat32List().length}");
 
     print("Load image as ${resizedImage.height} x ${resizedImage.width}");
     //var input = Float32List(1 * 224 * 224 * 3);
-    var convertedBytes = Float32List(1 * 224 * 224 * 3);
+
+    //var convertedBytes = Float32List(1 * 224 * 224 * 3);
+    var convertedBytes = Float32List(1 * height_m * width_m * 3);
     var input = Float32List.view(convertedBytes.buffer);
 
     int pixelIndex = 0;
 
-    for (int y = 0; y < 224; y++) {
-      for (int x = 0; x < 224; x++) {
+    // (int y = 0; y < 224; y++) {
+    for (int y = 0; y < height_m; y++){
+      // (int x = 0; x < 224; x++) {
+      for (int x = 0; x < width_m; x++){
         int r= resizedImage.getPixel(x, y).r.toInt();
         int g= resizedImage.getPixel(x, y).g.toInt();
         int b = resizedImage.getPixel(x, y).b.toInt();
@@ -127,7 +145,8 @@ class _MyHomePageState extends State<MyHomePage> {
     print("Labels --> ${labels}");
 
     var output = List.filled(1 * labels.length, 0.0).reshape([1, labels.length]);
-
+    print("Labels Length --> ${labels.length}");
+    print("Output shape --> ${output.shape}");
     interpreter.run(input, output);//input, output);
 
     int maxIndex = 0;
